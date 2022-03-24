@@ -1,28 +1,13 @@
 """""""""
-Written by Mengzhan Liufu at Yu Lab, the University of Chicago, November 2021
+Written by Mengzhan Liufu at Yu Lab, the University of Chicago
 """""""""
-
-from bandpass_filter import bandpass_filter
 import numpy as np
 
 
-def calculate_noise(filter_type, flattened_array, sampling_rate, order, lowcut, highcut, current_sample):
-    current_noise_data = bandpass_filter(filter_type, np.append(flattened_array, current_sample), \
-                                          sampling_rate, order, lowcut, highcut)
-
-    return abs(current_noise_data[-1])  # return absolute value here
-
-
-def data_buffering(client, buffer, buffer_size, sampling_freq, noise_lowcut, noise_highcut, noise_threshold):
-
-    for i in range(buffer_size):
-        current_sample = client.receive()
-        current_data = current_sample['lfpData']
-        buffer.append(current_data[3])
-
+def data_buffering(lfp_client, dio_client, Detector):
     while True:
-        current_sample = client.receive()
-        current_data = current_sample['lfpData']
+        current_data = lfp_client.receive()['lfpData']
+        Detector.data_buffer.append(current_data[Detector.target_channel])
 
-        buffer.append(current_data[3])
-        buffer.popleft()
+        # current_dio = bytearray(dio_client.receive()['digitalData'][0])
+        # Detector.trigger = current_dio[Detector.trigger_dio]

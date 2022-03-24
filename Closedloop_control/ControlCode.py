@@ -1,58 +1,48 @@
 """""""""
-Written by Mengzhan Liufu at Yu Lab, University of Chicago
+Written by Mengzhan Liufu at Yu Lab, the University of Chicago
 """""""""
 import trodes_connection as tc
-from phase_detection import detect_phase
+import phase_detection as pd
 from data_buffering import data_buffering
-# from determine_threshold import determine_threshold
-from collections import deque
+from detector import Detector
+from scipy.signal import butter, sosfiltfilt
 import threading
-import time
+import numpy as np
 
-# Connect to trodes
-trodes_client, trodes_hardware, trodes_info, sampling_rate = tc.connect_to_trodes("tcp://127.0.0.1:49152", 20, 'lfp')
+# ------------------------- trodes connection -------------------------
+server_address = "tcp://127.0.0.1:49152"
+lfp_client, trodes_hardware, trodes_info, sampling_rate = tc.connect_to_trodes(server_address, 20, 'lfp')
+dio_client = tc.subscribe_to_data('digital', server_address)
 
-# Parameters
-stimulation_num_wait = 3 # previously 15, but no decision made. Maybe 15 * (~20ms) might be too long?
-buffer_size = 150
-frequency_lowcut = 10  # low bound of target frequency range
-frequency_highcut = 30  # high bound of target frequency range
-noise_lowcut = 500  # low bound of noise range (usually a high freq band)
-noise_highcut = 600  # high bound of noise range
-stimulation_num_std = 3
-noise_num_std = 6  # make this value high; filtered data is spiky on the edges
-target_threshold = 300  # default target range detection threshold (refer to offline analysis!)
-noise_threshold = 1000  # default noise range detection threshold
+# ------------------------- Parameters -------------------------
+myDetc = Detector(3, 1, 3, 50, 400, 4, 10)
+'''
+target_channel, trigger_dio, num_to_wait, regr_buffer_size, fltr_buffer_size, target_lowcut, target_highcut
+'''
 
-data_buffer = deque()
+# ------------------------- Initialize data_buffer -------------------------
+for i in range(myDetc.fltr_buffer_size):
+    current_sample = lfp_client.receive()
+    current_data = current_sample['lfpData']
+    myDetc.data_buffer.append(current_data[myDetc.target_channel])
 
-# Start data buffering
-buffering_thread = threading.Thread(target=data_buffering, args=(trodes_client, data_buffer, buffer_size, sampling_rate, \
-                                                                noise_lowcut, noise_highcut, noise_threshold))
+buffering_thread = threading.Thread(target=data_buffering, args=(lfp_client, dio_client, myDetc))
 buffering_thread.start()
 
-time.sleep(2)
+# ------------------------- Initialize filter -------------------------
+butter_filter = butter(1, [myDetc.target_lowcut, myDetc.target_highcut], 'bp', fs=sampling_rate, output='sos')
 
-# Start detecting
+# ------------------------- Initialize sign buffer -------------------------
+A = pd.generate_matrix(myDetc.regr_buffer_size)
+curr_derv = pd.calculate_derv(A, butter_filter, myDetc)
+myDetc.curr_sign = curr_derv > 0
+myDetc.initialize_sign_buffer()
 
-# stimulation_status = False
-# decision_list = [False] * stimulation_num_wait
-
+# ------------------------- Start detection -------------------------
 while True:
 
-    current_phase = detect_phase(data_buffer, sampling_rate, frequency_lowcut, frequency_highcut)
-    print(current_phase)
+    pd.update_signbuffer(A, butter_filter, myDetc)
 
-    # current_decision = detect_with_rms(data_buffer, sampling_rate, frequency_lowcut, frequency_highcut)
-
-    # decision_list.append(current_decision)
-    # decision_list.pop(0)
-    # stimulation = all(decision_list)
-
-    # if (stimulation_status is False) and (stimulation is True):
-    #     tc.call_statescript(trodes_hardware, 3)
-    #     stimulation_status = True
-    #
-    # if (stimulation_status is True) and (stimulation is False):
-    #     tc.call_statescript(trodes_hardware, 4)
-    #     stimulation_status = False
+    if myDetc.check_sign_buffer():
+        myDetc.flip_curr_sign()
+        tc.call_statescript(trodes_hardware, 3)
