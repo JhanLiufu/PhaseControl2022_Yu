@@ -1,8 +1,7 @@
 """""""""
 Written by Mengzhan Liufu at Yu Lab, University of Chicago
 """""""""
-import math
-from scipy.signal import sosfiltfilt, sosfilt, filtfilt
+from scipy.signal import sosfiltfilt
 import numpy as np
 
 
@@ -23,3 +22,4 @@ def calculate_derv(A, filter, Detector):
 def update_signbuffer(A, filter, Detector):
     curr_derv = calculate_derv(A, filter, Detector)
     Detector.sign_buffer.append(curr_derv > 0)
+    Detector.sample += 1

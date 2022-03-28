@@ -39,10 +39,26 @@ myDetc.curr_sign = curr_derv > 0
 myDetc.initialize_sign_buffer()
 
 # ------------------------- Start detection -------------------------
+target_phase = np.pi
+curr_phase = None
 while True:
+
+    try:
+        curr_phase = myDetc.sample*myDetc.slope  # linear phase interpolation
+    except TypeError:
+        # sample count is None initially
+        pass
 
     pd.update_signbuffer(A, butter_filter, myDetc)
 
     if myDetc.check_sign_buffer():
+        curr_phase = myDetc.curr_sign*np.pi  # correct phase at critical point
+        myDetc.update_slope()
         myDetc.flip_curr_sign()
-        tc.call_statescript(trodes_hardware, 3)
+
+    try:
+        if curr_phase == target_phase:
+            tc.call_statescript(trodes_hardware, 3)
+    except TypeError:
+        # curr_phase is None initially
+        pass
