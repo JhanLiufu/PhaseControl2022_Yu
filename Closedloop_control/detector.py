@@ -1,3 +1,6 @@
+'''
+Written by Mengzhan Liufu at Yu Lab, the University of Chicago
+'''
 from collections import deque
 import numpy as np
 
@@ -18,23 +21,25 @@ class Detector:
         self.sign_buffer = None
         self.curr_sign = None
         self.slope = slope  # some default slope known empirically
-        self.sample = None
+        self.sample_count = None
 
-    # UNTESTED
+    # TESTED
     def update_slope(self):
-        if self.sample is None:  # the very first critical point
+        if self.sample_count is None:  # the very first critical point
             # initialize sample count according to current phase (0 or pi)
-            self.sample = self.curr_sign*int(np.pi/self.slope)
+            self.sample_count = self.curr_sign*int(np.pi/self.slope)
             return
 
-        self.slope = (2-self.curr_sign)*np.pi/self.sample
+        self.slope = (2-self.curr_sign)*np.pi/self.sample_count
         # map 1 (positive) to pi, 0 (negative) to 2pi
-        self.sample = self.curr_sign*int(np.pi/self.slope)
+        self.sample_count = self.curr_sign*int(np.pi/self.slope)
         # only reset sample count to 0 at phase = 2pi
 
+    # TESTED
     def flip_curr_sign(self):
         self.curr_sign = not self.curr_sign
 
+    # TESTED
     def check_sign_buffer(self):
         # needs optimization
         rtn = True
@@ -43,5 +48,6 @@ class Detector:
                 rtn = False
         return rtn
 
+    # TESTED
     def initialize_sign_buffer(self):
         self.sign_buffer = deque([self.curr_sign]*self.num_to_wait, maxlen=self.num_to_wait)
