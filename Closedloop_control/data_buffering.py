@@ -1,10 +1,9 @@
-'''
+"""""""""
 Written by Mengzhan Liufu at Yu Lab, the University of Chicago
-'''
+"""""""""
 import numpy as np
 
 
-# TESTED
 def data_buffering(lfp_client, dio_client, Detector):
     while True:
         current_data = lfp_client.receive()['lfpData']
