@@ -4,7 +4,7 @@ sampling from predefined probabilistic distribution
 """
 import numpy as np
 from random import randrange
-from numpy.random import normal, laplace
+from numpy.random import normal, laplace, vonmises
 
 
 def get_complete_random(sample_count=250):
@@ -13,13 +13,35 @@ def get_complete_random(sample_count=250):
 
     Parameters
     ----------
-    sample_count : int, number of trodes samples that correspond to 2Pi
+    sample_count : int, number of trodes samples that correspond to 2PI
 
     Returns
     ----------
     int, the number of samples to wait in the current cycle before stimulate
     """
     return randrange(0, sample_count)
+
+
+def get_vonmises_random(center, kappa, sample_count=250):
+    """
+    Sample random point from Von Mises (circular normal) distribution to stimulate in the current cycle
+
+    Parameters
+    ----------
+    center : float, the center of Von Mises distribution
+    kappa : float, the dispersion of Von Mises distribution
+    sample_count : int, number of trodes samples that correspond to 2Pi
+
+    Returns
+    -------
+    int, the number of samples to wait in the current cycle before stimulate
+    """
+    # randomly sample a phase value from von mises (circular normal) distribution
+    rand_phase = vonmises(center, kappa)
+    # change range from [-PI, PI] to [0, 2PI]
+    rand_phase += 2*np.pi*(rand_phase < 0)
+    # translate phase to sample count
+    return translate_phase_to_sample_count(rand_phase, sample_count)
 
 
 def get_gaussian_random(center, width, sample_count=250):
@@ -37,7 +59,7 @@ def get_gaussian_random(center, width, sample_count=250):
     int, the number of samples to wait in the current cycle before stimulate
     """
     # randomly sample a phase value from gaussian distribution
-    rand_phase = normal(center, width, 1)[0]
+    rand_phase = normal(center, width)
     rand_phase = validate_rand_phase(rand_phase)
     # translate phase to sample count
     return translate_phase_to_sample_count(rand_phase, sample_count)
@@ -58,7 +80,7 @@ def get_laplace_random(center, scale, sample_count=250):
     int, the number of samples to wait in the current cycle before stimulate
     """
     # randomly sample a phase value from laplace distribution
-    rand_phase = laplace(center, scale, 1)[0]
+    rand_phase = laplace(center, scale)
     rand_phase = validate_rand_phase(rand_phase)
     # translate phase to sample count
     return translate_phase_to_sample_count(rand_phase, sample_count)
@@ -66,7 +88,8 @@ def get_laplace_random(center, scale, sample_count=250):
 
 def validate_rand_phase(rand_phase):
     """
-    Correct invalid random phase values (the ones out of 0-2Pi range)
+    Correct invalid random phase values (the ones out of 0-2Pi range) generated
+    from non-circurlar distribution
 
     Parameters
     ----------
