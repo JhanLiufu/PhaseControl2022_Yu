@@ -1,1 +1,2 @@
 # PhaseControl2022_Yu
+This code is a closed-loop controller for manipulating theta oscillations in the local field potential (LFP). Implemented in python, the code with SpikeGadgets hardware and optrodes implanted in animal's brain can selectively detect and optogenetically stimulate upon specific phases of theta oscillations. There's also a module for cyclic random stimulation, which diminishes theta rhythm but doesn't completely silence the network.
